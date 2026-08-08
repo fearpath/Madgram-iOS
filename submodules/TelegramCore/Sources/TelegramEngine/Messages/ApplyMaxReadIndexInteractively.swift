@@ -3,6 +3,21 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
+public enum MarkAllChatsAsReadMode: Equatable {
+    case localOnly
+    case server
+}
+
+public struct MarkAllChatsAsReadState: Equatable {
+    public let hasLocalUnread: Bool
+    public let hasServerUnread: Bool
+
+    public init(hasLocalUnread: Bool, hasServerUnread: Bool) {
+        self.hasLocalUnread = hasLocalUnread
+        self.hasServerUnread = hasServerUnread
+    }
+}
+
 
 func _internal_applyMaxReadIndexInteractively(postbox: Postbox, stateManager: AccountStateManager, index: MessageIndex) -> Signal<Void, NoError> {
     return postbox.transaction { transaction -> Void in
@@ -10,17 +25,23 @@ func _internal_applyMaxReadIndexInteractively(postbox: Postbox, stateManager: Ac
     }
 }
     
-func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateManager: AccountStateManager, index: MessageIndex) {
+enum InteractiveReadSynchronizationMode {
+    case automatic
+    case localOnly
+}
+
+func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateManager: AccountStateManager, index: MessageIndex, synchronizationMode: InteractiveReadSynchronizationMode = .automatic) {
     let settings = ghostModeSettings(transaction: transaction)
     let isCloudPeer = index.id.peerId.namespace == Namespaces.Peer.CloudUser || index.id.peerId.namespace == Namespaces.Peer.CloudGroup || index.id.peerId.namespace == Namespaces.Peer.CloudChannel
-    let useGhostReadState = settings.hidesMessageReadReceipts && isCloudPeer
+    let useGhostReadState = (settings.hidesMessageReadReceipts || synchronizationMode == .localOnly) && isCloudPeer
     let previousReadState = useGhostReadState ? ghostModePreviousReadState(
         transaction: transaction,
         peerId: index.id.peerId,
         namespace: index.id.namespace
     ) : nil
-    let messageIds = transaction.applyInteractiveReadMaxIndex(index, synchronize: !useGhostReadState)
-    if useGhostReadState {
+    let shouldSynchronize = synchronizationMode == .automatic && !useGhostReadState
+    let messageIds = transaction.applyInteractiveReadMaxIndex(index, synchronize: shouldSynchronize)
+    if useGhostReadState && ghostModeShouldTrackRead(previousReadState: previousReadState) {
         transaction.setGhostModeReadState(GhostModeReadStateMarker(
             peerId: index.id.peerId,
             threadId: nil,
@@ -54,7 +75,7 @@ func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateMan
         }
     }
     
-    if index.id.peerId.namespace == Namespaces.Peer.SecretChat {
+    if index.id.peerId.namespace == Namespaces.Peer.SecretChat && synchronizationMode == .automatic {
         let timestamp = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
         for id in messageIds {
             if let message = transaction.getMessage(id) {
@@ -81,7 +102,7 @@ func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateMan
                 }
             }
         }
-    } else if index.id.peerId.namespace == Namespaces.Peer.CloudUser || index.id.peerId.namespace == Namespaces.Peer.CloudGroup || index.id.peerId.namespace == Namespaces.Peer.CloudChannel {
+    } else if synchronizationMode == .automatic && (index.id.peerId.namespace == Namespaces.Peer.CloudUser || index.id.peerId.namespace == Namespaces.Peer.CloudGroup || index.id.peerId.namespace == Namespaces.Peer.CloudChannel) {
         stateManager.notifyAppliedIncomingReadMessages([index.id])
     }
 }
@@ -350,5 +371,28 @@ public func clearPeerUnseenReactionsAndPollVotesInteractively(account: Account, 
 func _internal_markAllChatsAsReadInteractively(transaction: Transaction, network: Network, viewTracker: AccountViewTracker, groupId: PeerGroupId, filterPredicate: ChatListFilterPredicate?) {
     for peerId in transaction.getUnreadChatListPeerIds(groupId: groupId, filterPredicate: filterPredicate, additionalFilter: nil, stopOnFirstMatch: false) {
         _internal_togglePeerUnreadMarkInteractively(transaction: transaction, network: network, viewTracker: viewTracker, peerId: peerId, setToValue: false)
+    }
+}
+
+func _internal_markAllChatsAsReadLocally(
+    transaction: Transaction,
+    stateManager: AccountStateManager,
+    viewTracker: AccountViewTracker,
+    groupId: PeerGroupId,
+    filterPredicate: ChatListFilterPredicate?
+) {
+    for peerId in transaction.getUnreadChatListPeerIds(groupId: groupId, filterPredicate: filterPredicate, additionalFilter: nil, stopOnFirstMatch: false) {
+        if let index = transaction.getTopPeerMessageIndex(peerId: peerId) {
+            _internal_applyMaxReadIndexInteractively(
+                transaction: transaction,
+                stateManager: stateManager,
+                index: index,
+                synchronizationMode: .localOnly
+            )
+        } else {
+            let namespace: MessageId.Namespace = peerId.namespace == Namespaces.Peer.SecretChat ? Namespaces.Message.SecretIncoming : Namespaces.Message.Cloud
+            transaction.applyMarkUnread(peerId: peerId, namespace: namespace, value: false, interactive: true)
+        }
+        viewTracker.updateMarkAllMentionsSeen(peerId: peerId, threadId: nil)
     }
 }

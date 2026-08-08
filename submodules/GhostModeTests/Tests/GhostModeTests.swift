@@ -161,6 +161,62 @@ final class GhostModeTests: XCTestCase {
         XCTAssertEqual(marker.maxReadIndex.id.id, 15)
     }
 
+    func testReadMarkerIsCreatedOnlyForServerUnreadState() {
+        XCTAssertFalse(ghostModeShouldTrackRead(previousReadState: GhostModePreviousReadState(
+            maxIncomingReadId: 10,
+            maxOutgoingReadId: 10,
+            maxKnownId: 10,
+            count: 0,
+            markedUnread: false
+        )))
+        XCTAssertTrue(ghostModeShouldTrackRead(previousReadState: GhostModePreviousReadState(
+            maxIncomingReadId: 10,
+            maxOutgoingReadId: 10,
+            maxKnownId: 12,
+            count: 2,
+            markedUnread: false
+        )))
+        XCTAssertTrue(ghostModeShouldTrackRead(previousReadState: GhostModePreviousReadState(
+            maxIncomingReadId: 10,
+            maxOutgoingReadId: 10,
+            maxKnownId: 10,
+            count: 0,
+            markedUnread: true
+        )))
+    }
+
+    func testReadMarkerWaitsForServerReadWatermark() {
+        let marker = self.peerMarker(peerId: PeerId(1), snapshot: GhostModePreviousReadState(
+            maxIncomingReadId: 10,
+            maxOutgoingReadId: 10,
+            maxKnownId: 15,
+            count: 5,
+            markedUnread: false
+        ))
+        XCTAssertFalse(ghostModeReadStateIsAcknowledged(marker: marker, maxReadId: marker.maxReadIndex.id.id - 1))
+        XCTAssertTrue(ghostModeReadStateIsAcknowledged(marker: marker, maxReadId: marker.maxReadIndex.id.id))
+        XCTAssertTrue(ghostModeReadStateIsAcknowledged(marker: marker, maxReadId: marker.maxReadIndex.id.id + 1))
+    }
+
+    func testOlderCommitDoesNotRemoveNewerReadMarker() {
+        let committed = self.peerMarker(peerId: PeerId(1), snapshot: nil)
+        let newer = GhostModeReadStateMarker(
+            peerId: committed.peerId,
+            threadId: committed.threadId,
+            namespace: committed.namespace,
+            maxReadIndex: MessageIndex(
+                id: MessageId(
+                    peerId: committed.peerId,
+                    namespace: committed.namespace,
+                    id: committed.maxReadIndex.id.id + 1
+                ),
+                timestamp: committed.maxReadIndex.timestamp + 1
+            )
+        )
+        XCTAssertTrue(ghostModeCommitCoversCurrentMarker(committed: committed, current: committed))
+        XCTAssertFalse(ghostModeCommitCoversCurrentMarker(committed: committed, current: newer))
+    }
+
     func testThreadMarkerKeepsRollbackSnapshot() {
         let peerId = PeerId(456)
         let snapshot = GhostModePreviousThreadReadState(

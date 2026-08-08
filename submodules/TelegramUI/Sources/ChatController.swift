@@ -301,6 +301,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     var rightNavigationButton: ChatNavigationButton?
     var secondaryRightNavigationButton: ChatNavigationButton?
     var ghostModeReadButtonItem: UIBarButtonItem?
+    var ghostModeReadButtonVisible = false
     let ghostModeSettingsDisposable = MetaDisposable()
     let interfaceTuningSettingsDisposable = MetaDisposable()
     var chatInfoNavigationButton: ChatNavigationButton?
@@ -6340,27 +6341,26 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         self.moreBarButton.addTarget(self, action: #selector(self.moreButtonPressed), forControlEvents: .touchUpInside)
 
         if let peerId = self.chatLocation.peerId, peerId.namespace == Namespaces.Peer.CloudUser || peerId.namespace == Namespaces.Peer.CloudGroup || peerId.namespace == Namespaces.Peer.CloudChannel {
+            let ghostModeReadButtonItem = UIBarButtonItem(
+                image: UIImage(systemName: "eye.slash"),
+                style: .plain,
+                target: self,
+                action: #selector(self.ghostModeReadButtonPressed)
+            )
+            let ghostModeStrings = self.presentationData.strings.localFeatures.ghostMode
+            ghostModeReadButtonItem.accessibilityLabel = ghostModeStrings.markViewedMessagesAsRead
+            ghostModeReadButtonItem.accessibilityHint = ghostModeStrings.suppressMessageReadReceiptsInfo
+            self.ghostModeReadButtonItem = ghostModeReadButtonItem
             self.ghostModeSettingsDisposable.set((context.engine.messages.ghostModeChatState(peerId: peerId, threadId: self.chatLocation.threadId)
             |> deliverOnMainQueue).start(next: { [weak self] state in
                 guard let self else {
                     return
                 }
-                if state.settings.hidesMessageReadReceipts && state.hasPendingReadReceipt {
-                    if self.ghostModeReadButtonItem == nil {
-                        let item = UIBarButtonItem(
-                            image: UIImage(systemName: "eye.slash"),
-                            style: .plain,
-                            target: self,
-                            action: #selector(self.ghostModeReadButtonPressed)
-                        )
-                        let ghostModeStrings = self.presentationData.strings.localFeatures.ghostMode
-                        item.accessibilityLabel = ghostModeStrings.markViewedMessagesAsRead
-                        item.accessibilityHint = ghostModeStrings.suppressMessageReadReceiptsInfo
-                        self.ghostModeReadButtonItem = item
-                    }
-                } else {
-                    self.ghostModeReadButtonItem = nil
+                let isVisible = state.settings.hidesMessageReadReceipts && state.hasPendingReadReceipt
+                guard self.ghostModeReadButtonVisible != isVisible else {
+                    return
                 }
+                self.ghostModeReadButtonVisible = isVisible
                 self.updateRightNavigationButtons(presentationInterfaceState: self.presentationInterfaceState, transition: .animated(duration: 0.2, curve: .easeInOut))
             }))
 

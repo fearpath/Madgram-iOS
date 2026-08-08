@@ -17,6 +17,47 @@ public struct GhostModeChatState: Equatable {
     }
 }
 
+public func ghostModeShouldTrackRead(previousReadState: GhostModePreviousReadState?) -> Bool {
+    guard let previousReadState else {
+        return false
+    }
+    return previousReadState.count != 0 || previousReadState.markedUnread
+}
+
+public func ghostModeShouldTrackThreadRead(previousReadState: GhostModePreviousThreadReadState?) -> Bool {
+    guard let previousReadState else {
+        return false
+    }
+    return previousReadState.incomingUnreadCount != 0 || previousReadState.markedUnread
+}
+
+public func ghostModeReadStateIsAcknowledged(marker: GhostModeReadStateMarker, maxReadId: MessageId.Id) -> Bool {
+    return maxReadId >= marker.maxReadIndex.id.id
+}
+
+public func ghostModeCommitCoversCurrentMarker(committed: GhostModeReadStateMarker, current: GhostModeReadStateMarker) -> Bool {
+    return current.maxReadIndex <= committed.maxReadIndex
+}
+
+@discardableResult
+func acknowledgeGhostModeReadState(
+    transaction: Transaction,
+    peerId: PeerId,
+    threadId: Int64?,
+    namespace: MessageId.Namespace,
+    maxReadId: MessageId.Id
+) -> Bool {
+    guard let marker = transaction.getGhostModeReadState(peerId: peerId, threadId: threadId, namespace: namespace) else {
+        return false
+    }
+    guard ghostModeReadStateIsAcknowledged(marker: marker, maxReadId: maxReadId) else {
+        return false
+    }
+    transaction.removeGhostModeReadState(peerId: peerId, threadId: threadId, namespace: namespace)
+    updateGhostModeReadStateVersion(transaction: transaction)
+    return true
+}
+
 func _internal_ghostModeChatState(postbox: Postbox, peerId: PeerId, threadId: Int64?) -> Signal<GhostModeChatState, NoError> {
     return postbox.preferencesView(keys: [
         PreferencesKeys.ghostModeSettings,
@@ -87,6 +128,13 @@ func _internal_commitGhostModeReadState(account: Account, peerId: PeerId, thread
                 return .single(false)
             }
             return account.postbox.transaction { transaction -> Bool in
+                if let currentMarker = transaction.getGhostModeReadState(
+                    peerId: marker.peerId,
+                    threadId: marker.threadId,
+                    namespace: marker.namespace
+                ), !ghostModeCommitCoversCurrentMarker(committed: marker, current: currentMarker) {
+                    return true
+                }
                 transaction.removeGhostModeReadState(
                     peerId: marker.peerId,
                     threadId: marker.threadId,

@@ -959,6 +959,21 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     
     func tabContextGesture(id: Int32?, sourceNode: ContextExtractedContentContainingNode?, sourceView: ContextExtractedContentContainingView?, gesture: ContextGesture?, keepInPlace: Bool, isDisabled: Bool) {
         let context = self.context
+        let bulkReadData = self.context.engine.peers.currentChatListFilters()
+        |> take(1)
+        |> mapToSignal { [weak self] filters -> Signal<([ChatListFilter], [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)], GhostModeSettings, MarkAllChatsAsReadState), NoError> in
+            guard let self else {
+                return .complete()
+            }
+            let readItems = self.readAllItems(id: id, filters: filters)
+            return combineLatest(
+                self.context.engine.messages.ghostModeSettings() |> take(1),
+                self.context.engine.messages.markAllChatsAsReadState(items: readItems)
+            )
+            |> map { settings, state in
+                return (filters, readItems, settings, state)
+            }
+        }
         let filterPeersAreMuted: Signal<(areMuted: Bool, peerIds: [EnginePeer.Id])?, NoError> = self.context.engine.peers.currentChatListFilters()
         |> take(1)
         |> mapToSignal { filters -> Signal<(areMuted: Bool, peerIds: [EnginePeer.Id])?, NoError> in
@@ -1012,16 +1027,18 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
         
         let _ = combineLatest(
             queue: Queue.mainQueue(),
-            self.context.engine.peers.currentChatListFilters(),
+            bulkReadData,
             self.context.engine.data.get(
                 TelegramEngine.EngineData.Item.Configuration.UserLimits(isPremium: true)
             ),
             filterPeersAreMuted
-        ).startStandalone(next: { [weak self] filters, premiumLimits, filterPeersAreMuted in
+        ).startStandalone(next: { [weak self] bulkReadData, premiumLimits, filterPeersAreMuted in
             guard let self else {
                 return
             }
+            let (filters, readItems, ghostModeSettings, readState) = bulkReadData
             var items: [ContextMenuItem] = []
+            items.append(contentsOf: self.readAllContextMenuItems(settings: ghostModeSettings, state: readState, readItems: readItems))
             if let id = id {
                 items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.ChatList_EditFolder, icon: { theme in
                     return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Edit"), color: theme.contextMenu.primaryColor)
@@ -1157,20 +1174,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     
                     if let filterEntries = self.tabContainerData?.0 {
                         for filter in filterEntries {
-                            if case let .filter(filterId, _, unread) = filter, filterId == id {
-                                if unread.value > 0 {
-                                    items.append(.action(ContextMenuActionItem(text: self.presentationData.strings.ChatList_ReadAll, textColor: .primary, icon: { theme in
-                                        return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/ReadAll"), color: theme.contextMenu.primaryColor)
-                                    }, action: { [weak self] c, f in
-                                        c?.dismiss(completion: {
-                                            guard let self else {
-                                                return
-                                            }
-                                            self.readAllInFilter(id: id)
-                                        })
-                                    })))
-                                }
-                                
+                            if case let .filter(filterId, _, _) = filter, filterId == id {
                                 for filter in filters {
                                     if filter.id == filterId, case let .filter(_, title, _, data) = filter {
                                         if let filterPeersAreMuted, filterPeersAreMuted.peerIds.count <= 200 {
@@ -4175,19 +4179,56 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
         })
     }
     
-    private func readAllInFilter(id: Int32) {
-        for filter in self.chatListDisplayNode.mainContainerNode.availableFilters {
-            if case let .filter(filter) = filter, case let .filter(filterId, _, _, data) = filter, filterId == id {
-                let filterPredicate = chatListFilterPredicate(filter: data, accountPeerId: self.context.account.peerId)
-                var markItems: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)] = []
-                markItems.append((.root, filterPredicate))
-                for additionalGroupId in filterPredicate.includeAdditionalPeerGroupIds {
-                    markItems.append((EngineChatList.Group(additionalGroupId), filterPredicate))
-                }
-                
-                let _ = self.context.engine.messages.markAllChatsAsReadInteractively(items: markItems).startStandalone()
-                break
-            }
+    private func readAllItems(id: Int32?, filters: [ChatListFilter]) -> [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)] {
+        guard let id else {
+            return [
+                (.root, nil),
+                (EngineChatList.Group(Namespaces.PeerGroup.archive), nil)
+            ]
+        }
+        guard let filter = filters.first(where: { $0.id == id }), case let .filter(_, _, _, data) = filter else {
+            return []
+        }
+        let filterPredicate = chatListFilterPredicate(filter: data, accountPeerId: self.context.account.peerId)
+        var result: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)] = [(.root, filterPredicate)]
+        for additionalGroupId in filterPredicate.includeAdditionalPeerGroupIds {
+            result.append((EngineChatList.Group(additionalGroupId), filterPredicate))
+        }
+        return result
+    }
+
+    private func readAll(items: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)], mode: MarkAllChatsAsReadMode) {
+        guard !items.isEmpty else {
+            return
+        }
+        let _ = self.context.engine.messages.markAllChatsAsReadInteractively(items: items, mode: mode).startStandalone()
+    }
+
+    private func readAllContextMenuItems(
+        settings: GhostModeSettings,
+        state: MarkAllChatsAsReadState,
+        readItems: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)]
+    ) -> [ContextMenuItem] {
+        guard state.hasLocalUnread || state.hasServerUnread else {
+            return []
+        }
+        let action: (String, MarkAllChatsAsReadMode) -> ContextMenuItem = { [weak self] title, mode in
+            return .action(ContextMenuActionItem(text: title, textColor: .primary, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/ReadAll"), color: theme.contextMenu.primaryColor)
+            }, action: { controller, _ in
+                controller?.dismiss(completion: {
+                    self?.readAll(items: readItems, mode: mode)
+                })
+            }))
+        }
+        if settings.hidesMessageReadReceipts {
+            let strings = self.presentationData.strings.localFeatures.ghostMode
+            return [
+                action(strings.readAllLocally, .localOnly),
+                action(strings.readAllOnServer, .server)
+            ]
+        } else {
+            return [action(self.presentationData.strings.ChatList_ReadAll, .server)]
         }
     }
     
@@ -6287,6 +6328,11 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     }
     
     override public func tabBarItemContextAction(sourceView: ContextExtractedContentContainingView, gesture: ContextGesture) {
+        let allReadItems = self.readAllItems(id: nil, filters: [])
+        let bulkReadData = combineLatest(
+            self.context.engine.messages.ghostModeSettings() |> take(1),
+            self.context.engine.messages.markAllChatsAsReadState(items: allReadItems)
+        )
         let _ = (combineLatest(queue: .mainQueue(),
             self.context.engine.peers.currentChatListFilters(),
             chatListFilterItems(context: self.context)
@@ -6295,9 +6341,10 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                 TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId),
                 TelegramEngine.EngineData.Item.Configuration.UserLimits(isPremium: false),
                 TelegramEngine.EngineData.Item.Configuration.UserLimits(isPremium: true)
-            )
+            ),
+            bulkReadData
         )
-        |> deliverOnMainQueue).startStandalone(next: { [weak self] presetList, filterItemsAndTotalCount, result in
+        |> deliverOnMainQueue).startStandalone(next: { [weak self] presetList, filterItemsAndTotalCount, result, bulkReadData in
             guard let strongSelf = self else {
                 return
             }
@@ -6319,6 +6366,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     strongSelf.openFilterSettings()
                 })
             })))
+            items.append(contentsOf: strongSelf.readAllContextMenuItems(settings: bulkReadData.0, state: bulkReadData.1, readItems: allReadItems))
             
             if strongSelf.chatListDisplayNode.effectiveContainerNode.currentItemNode.chatListFilter != nil {
                 items.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.ChatList_FolderAllChats, icon: { theme in

@@ -116,14 +116,16 @@ func _internal_installInteractiveReadMessagesAction(postbox: Postbox, stateManag
                             markedUnread: data.isMarkedUnread
                         )
                     }
-                    transaction.setGhostModeReadState(GhostModeReadStateMarker(
-                        peerId: peerId,
-                        threadId: threadId,
-                        namespace: index.id.namespace,
-                        maxReadIndex: index,
-                        previousThreadReadState: previousThreadReadState
-                    ))
-                    updateGhostModeReadStateVersion(transaction: transaction)
+                    if ghostModeShouldTrackThreadRead(previousReadState: previousThreadReadState) {
+                        transaction.setGhostModeReadState(GhostModeReadStateMarker(
+                            peerId: peerId,
+                            threadId: threadId,
+                            namespace: index.id.namespace,
+                            maxReadIndex: index,
+                            previousThreadReadState: previousThreadReadState
+                        ))
+                        updateGhostModeReadStateVersion(transaction: transaction)
+                    }
                 }
                 var newCountIsZero = false
                 if var data = threadData {

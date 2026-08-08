@@ -4616,7 +4616,13 @@ func replayFinalState(
                 updateMessageMedia(transaction: transaction, id: id, media: media)
             case let .ReadInbox(messageId):
                 transaction.applyIncomingReadMaxId(messageId)
-                updateGhostModeReadStateVersion(transaction: transaction)
+                let _ = acknowledgeGhostModeReadState(
+                    transaction: transaction,
+                    peerId: messageId.peerId,
+                    threadId: nil,
+                    namespace: messageId.namespace,
+                    maxReadId: messageId.id
+                )
             case let .ReadOutbox(messageId, timestamp):
                 transaction.applyOutgoingReadMaxId(messageId)
                 if messageId.peerId != accountPeerId, messageId.peerId.namespace == Namespaces.Peer.CloudUser, let timestamp = timestamp {
@@ -4627,6 +4633,13 @@ func replayFinalState(
             case let .UpdateReadThread(peerId, threadId, readMaxId, isIncoming, mainChannelMessage):
                 let peerAndThreadId = PeerAndBoundThreadId(peerId: peerId, threadId: threadId)
                 if isIncoming {
+                    let _ = acknowledgeGhostModeReadState(
+                        transaction: transaction,
+                        peerId: peerId,
+                        threadId: threadId,
+                        namespace: Namespaces.Message.Cloud,
+                        maxReadId: readMaxId
+                    )
                     if let currentId = updatedIncomingThreadReadStates[peerAndThreadId] {
                         if currentId < readMaxId {
                             updatedIncomingThreadReadStates[peerAndThreadId] = readMaxId
@@ -4747,6 +4760,13 @@ func replayFinalState(
                 }
                 if !ignore {
                     transaction.resetIncomingReadStates([peerId: [namespace: .idBased(maxIncomingReadId: maxIncomingReadId, maxOutgoingReadId: maxOutgoingReadId, maxKnownId: maxKnownId, count: count, markedUnread: markedUnreadValue)]])
+                    let _ = acknowledgeGhostModeReadState(
+                        transaction: transaction,
+                        peerId: peerId,
+                        threadId: nil,
+                        namespace: namespace,
+                        maxReadId: maxIncomingReadId
+                    )
                 }
             case let .ResetIncomingReadState(groupId, peerId, namespace, maxIncomingReadId, count, pts):
                 var ptsMatchesState = false
@@ -4786,9 +4806,22 @@ func replayFinalState(
                     }
                     let stateDict = Dictionary(updatedStates, uniquingKeysWith: { lhs, _ in lhs })
                     transaction.resetIncomingReadStates([peerId: stateDict])
+                    let _ = acknowledgeGhostModeReadState(
+                        transaction: transaction,
+                        peerId: peerId,
+                        threadId: nil,
+                        namespace: namespace,
+                        maxReadId: maxIncomingReadId
+                    )
                 } else {
                     transaction.applyIncomingReadMaxId(MessageId(peerId: peerId, namespace: namespace, id: maxIncomingReadId))
-                    updateGhostModeReadStateVersion(transaction: transaction)
+                    let _ = acknowledgeGhostModeReadState(
+                        transaction: transaction,
+                        peerId: peerId,
+                        threadId: nil,
+                        namespace: namespace,
+                        maxReadId: maxIncomingReadId
+                    )
                     transaction.setNeedsIncomingReadStateSynchronization(peerId)
                     invalidateGroupStats.insert(groupId)
                 }

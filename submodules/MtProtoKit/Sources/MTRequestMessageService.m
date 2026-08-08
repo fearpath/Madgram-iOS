@@ -367,7 +367,7 @@
         
         if (_requestsTimeoutTimer == nil) {
             __weak MTRequestMessageService *weakSelf = self;
-            _requestsTimeoutTimer = [[MTTimer alloc] initWithTimeout:5.0 repeat:false completion:^
+            _requestsTimeoutTimer = [[MTTimer alloc] initWithTimeout:3.0 repeat:false completion:^
             {
                 __strong MTRequestMessageService *strongSelf = weakSelf;
                 [strongSelf requestTimerTimeoutEvent];

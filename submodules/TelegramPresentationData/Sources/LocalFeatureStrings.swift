@@ -23,6 +23,8 @@ public struct GhostModeFeatureStrings {
     public let keepViewOnceMediaInfo: String
     public let burnViewOnceMedia: String
     public let activeIndicator: String
+    public let readAllLocally: String
+    public let readAllOnServer: String
 }
 
 public struct LocalMessageArchiveFeatureStrings {
@@ -226,7 +228,9 @@ public struct LocalFeatureStrings {
                 keepViewOnceMedia: "Не сжигать одноразовые медиа",
                 keepViewOnceMediaInfo: "Одноразовые фото, видео, голосовые и кружки можно пересматривать сколько угодно раз, включая секретные чаты. Отправитель видит их непросмотренными, пока вы не нажмёте «Сжечь».",
                 burnViewOnceMedia: "Сжечь",
-                activeIndicator: "Режим призрака включён"
+                activeIndicator: "Режим призрака включён",
+                readAllLocally: "Прочитать локально",
+                readAllOnServer: "Прочитать на сервере"
             )
             self.localMessageArchive = LocalMessageArchiveFeatureStrings(
                 title: "Удалённые и изменённые",
@@ -417,7 +421,9 @@ public struct LocalFeatureStrings {
                 keepViewOnceMedia: "Не спалювати одноразові медіа",
                 keepViewOnceMediaInfo: "Одноразові фото, відео, голосові та кружечки можна переглядати скільки завгодно разів, зокрема в секретних чатах. Відправник бачить їх непереглянутими, доки ви не натиснете «Спалити».",
                 burnViewOnceMedia: "Спалити",
-                activeIndicator: "Режим привида увімкнено"
+                activeIndicator: "Режим привида увімкнено",
+                readAllLocally: "Прочитати локально",
+                readAllOnServer: "Прочитати на сервері"
             )
             self.localMessageArchive = LocalMessageArchiveFeatureStrings(
                 title: "Видалені та змінені",
@@ -608,7 +614,9 @@ public struct LocalFeatureStrings {
                 keepViewOnceMedia: "Don't Burn View-Once Media",
                 keepViewOnceMediaInfo: "View-once photos, videos, voice and video messages can be replayed any number of times, including in secret chats. The sender sees them as unopened until you tap Burn.",
                 burnViewOnceMedia: "Burn",
-                activeIndicator: "Ghost Mode is on"
+                activeIndicator: "Ghost Mode is on",
+                readAllLocally: "Read locally",
+                readAllOnServer: "Read on server"
             )
             self.localMessageArchive = LocalMessageArchiveFeatureStrings(
                 title: "Deleted and Edited",

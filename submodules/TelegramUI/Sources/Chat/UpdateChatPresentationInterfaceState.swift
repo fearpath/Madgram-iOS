@@ -46,7 +46,7 @@ extension ChatControllerImpl {
         }
 
         var rightBarButtons: [UIBarButtonItem] = []
-        if let ghostModeReadButtonItem = self.ghostModeReadButtonItem {
+        if self.ghostModeReadButtonVisible, let ghostModeReadButtonItem = self.ghostModeReadButtonItem {
             rightBarButtons.append(ghostModeReadButtonItem)
         }
         if let rightNavigationButton = self.rightNavigationButton {

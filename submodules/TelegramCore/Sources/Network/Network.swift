@@ -1096,7 +1096,7 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
             })
             
             request.dependsOnPasswordEntry = false
-            // Stall detector: with a pending request and 5s of zero transport activity, the
+            // Stall detector: with a pending request and 3s of zero transport activity, the
             // connection is torn down and re-established (see MTRequestMessageService). Without
             // this, a socket silently killed while the app was suspended (VPN tunnel flap under
             // DPI blackholing) is never detected and the main connection hangs until app restart.

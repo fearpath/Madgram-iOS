@@ -964,14 +964,70 @@ public extension TelegramEngine {
             }
         }
         
-        public func markAllChatsAsReadInteractively(items: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)]) -> Signal<Never, NoError> {
-            let account = self.account
-            return self.account.postbox.transaction { transaction -> Void in
+        public func markAllChatsAsReadState(items: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)]) -> Signal<MarkAllChatsAsReadState, NoError> {
+            return self.account.postbox.transaction { transaction -> MarkAllChatsAsReadState in
+                var scopedPeerIds = Set<PeerId>()
+                var unreadPeerIds = Set<PeerId>()
                 for (groupId, filterPredicate) in items {
-                    _internal_markAllChatsAsReadInteractively(transaction: transaction, network: self.account.network, viewTracker: account.viewTracker, groupId: groupId._asGroup(), filterPredicate: filterPredicate)
+                    let rawGroupId = groupId._asGroup()
+                    scopedPeerIds.formUnion(transaction.getChatListPeers(groupId: rawGroupId, filterPredicate: filterPredicate, additionalFilter: nil).map(\.id))
+                    unreadPeerIds.formUnion(transaction.getUnreadChatListPeerIds(groupId: rawGroupId, filterPredicate: filterPredicate, additionalFilter: nil, stopOnFirstMatch: false))
                 }
+                let hasPendingGhostRead = transaction.getAllGhostModeReadStates().contains(where: { marker in
+                    return marker.namespace == Namespaces.Message.Cloud && scopedPeerIds.contains(marker.peerId)
+                })
+                return MarkAllChatsAsReadState(
+                    hasLocalUnread: !unreadPeerIds.isEmpty,
+                    hasServerUnread: !unreadPeerIds.isEmpty || hasPendingGhostRead
+                )
             }
-            |> ignoreValues
+        }
+
+        public func markAllChatsAsReadInteractively(items: [(groupId: EngineChatList.Group, filterPredicate: ChatListFilterPredicate?)], mode: MarkAllChatsAsReadMode = .server) -> Signal<Never, NoError> {
+            let account = self.account
+            return self.account.postbox.transaction { transaction -> [(PeerId, Int64?)] in
+                var scopedPeerIds = Set<PeerId>()
+                for (groupId, filterPredicate) in items {
+                    let rawGroupId = groupId._asGroup()
+                    scopedPeerIds.formUnion(transaction.getChatListPeers(groupId: rawGroupId, filterPredicate: filterPredicate, additionalFilter: nil).map(\.id))
+                    switch mode {
+                    case .localOnly:
+                        _internal_markAllChatsAsReadLocally(
+                            transaction: transaction,
+                            stateManager: account.stateManager,
+                            viewTracker: account.viewTracker,
+                            groupId: rawGroupId,
+                            filterPredicate: filterPredicate
+                        )
+                    case .server:
+                        _internal_markAllChatsAsReadInteractively(
+                            transaction: transaction,
+                            network: account.network,
+                            viewTracker: account.viewTracker,
+                            groupId: rawGroupId,
+                            filterPredicate: filterPredicate
+                        )
+                    }
+                }
+
+                guard mode == .server else {
+                    return []
+                }
+                var markerKeys = Set<PeerAndThreadId>()
+                for marker in transaction.getAllGhostModeReadStates() where marker.namespace == Namespaces.Message.Cloud && scopedPeerIds.contains(marker.peerId) {
+                    markerKeys.insert(PeerAndThreadId(peerId: marker.peerId, threadId: marker.threadId))
+                }
+                return markerKeys.map { ($0.peerId, $0.threadId) }
+            }
+            |> mapToSignal { markerKeys -> Signal<Never, NoError> in
+                var signal: Signal<Never, NoError> = .complete()
+                for (peerId, threadId) in markerKeys {
+                    signal = signal
+                    |> then(_internal_commitGhostModeReadState(account: account, peerId: peerId, threadId: threadId)
+                    |> ignoreValues)
+                }
+                return signal
+            }
         }
         
         public func getRelativeUnreadChatListIndex(filtered: Bool, position: EngineChatList.RelativePosition, groupId: EngineChatList.Group) -> Signal<EngineChatList.Item.Index?, NoError> {
