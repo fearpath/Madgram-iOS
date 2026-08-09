@@ -842,6 +842,11 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     public func dropConnectionStatus() {
         _connectionStatus.set(.single(.waitingForNetwork))
     }
+
+    public func restartConnection() {
+        self.mtProto.requestSecureTransportReset()
+        self.mtProto.requestTransportTransaction()
+    }
     
     public let shouldKeepConnection = Promise<Bool>(false)
     private let shouldKeepConnectionDisposable = MetaDisposable()
@@ -1096,10 +1101,6 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
             })
             
             request.dependsOnPasswordEntry = false
-            // Stall detector: with a pending request and 3s of zero transport activity, the
-            // connection is torn down and re-established (see MTRequestMessageService). Without
-            // this, a socket silently killed while the app was suspended (VPN tunnel flap under
-            // DPI blackholing) is never detected and the main connection hangs until app restart.
             request.needsTimeoutTimer = self.useRequestTimeoutTimers
 
             request.shouldContinueExecutionWithErrorContext = { errorContext in
@@ -1173,7 +1174,6 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
             })
             
             request.dependsOnPasswordEntry = false
-            // Same stall detector as in requestWithAdditionalInfo above.
             request.needsTimeoutTimer = self.useRequestTimeoutTimers
 
             request.shouldContinueExecutionWithErrorContext = { errorContext in

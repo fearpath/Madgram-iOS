@@ -228,6 +228,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     private var isInForegroundValue = false
     private let isActivePromise = ValuePromise<Bool>(false, ignoreRepeated: true)
     private var isActiveValue = false
+    private var backgroundEnteredTimestamp: CFAbsoluteTime?
     let hasActiveAudioSession = Promise<Bool>(false)
     
     private let sharedContextPromise = Promise<SharedApplicationContext>()
@@ -1925,6 +1926,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
+        self.backgroundEnteredTimestamp = CFAbsoluteTimeGetCurrent()
+
         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
@@ -1943,7 +1946,6 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
              |> take(1)
              |> deliverOnMainQueue).start(next: { activeAccounts in
                 for (_, context, _) in activeAccounts.accounts {
-                    context.account.resetStateManagement()
                     context.account.postbox.clearCaches()
                 }
             })
@@ -1973,24 +1975,20 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-        if self.isActiveValue {
-            self.isInForegroundValue = true
-            self.isInForegroundPromise.set(true)
-        } else {
-            if #available(iOSApplicationExtension 12.0, *) {
-                DispatchQueue.main.async {
-                    self.isInForegroundValue = true
-                    self.isInForegroundPromise.set(true)
-                }
-            }
-        }
+        let shouldRestartConnection = self.backgroundEnteredTimestamp.map { timestamp -> Bool in
+            return CFAbsoluteTimeGetCurrent() - timestamp >= 15.0
+        } ?? false
+        self.backgroundEnteredTimestamp = nil
+
+        self.isInForegroundValue = true
+        self.isInForegroundPromise.set(true)
         
-        self.runForegroundTasks()
+        self.runForegroundTasks(restartConnection: shouldRestartConnection)
         
         SharedDisplayLinkDriver.shared.updateForegroundState(self.isActiveValue)
     }
     
-    func runForegroundTasks() {
+    func runForegroundTasks(restartConnection: Bool = false) {
         let _ = (self.sharedContextPromise.get()
         |> take(1)
         |> deliverOnMainQueue).start(next: { sharedApplicationContext in
@@ -1998,6 +1996,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
              |> take(1)
              |> deliverOnMainQueue).start(next: { activeAccounts in
                 for (_, context, _) in activeAccounts.accounts {
+                    if restartConnection {
+                        context.account.network.restartConnection()
+                    }
                     context.account.resetStateManagement()
                     (context.downloadedMediaStoreManager as? DownloadedMediaStoreManagerImpl)?.runTasks()
                 }

@@ -87,6 +87,7 @@ final class GiftOptionsScreenComponent: Component {
         case resale
         case stars(Int64)
         case transfer
+        case hidden
         
         init(rawValue: Int64) {
             switch rawValue {
@@ -100,6 +101,8 @@ final class GiftOptionsScreenComponent: Component {
                 self = .transfer
             case -4:
                 self = .resale
+            case -5:
+                self = .hidden
             default:
                 self = .stars(rawValue)
             }
@@ -117,6 +120,8 @@ final class GiftOptionsScreenComponent: Component {
                 return -3
             case .resale:
                 return -4
+            case .hidden:
+                return -5
             case let .stars(stars):
                 return stars
             }
@@ -156,7 +161,9 @@ final class GiftOptionsScreenComponent: Component {
         private var _effectiveStarGifts: ([StarGift], StarsFilter, Int)?
         private var effectiveStarGifts: [StarGift]? {
             get {
-                if let (currentGifts, currentFilter, currentVersion) = self._effectiveStarGifts, currentFilter == self.starsFilter && currentFilter != .transfer && currentVersion == self.state?.starGiftsVersion {
+                if case .hidden = self.starsFilter {
+                    return self.state?.hiddenStarGifts
+                } else if let (currentGifts, currentFilter, currentVersion) = self._effectiveStarGifts, currentFilter == self.starsFilter && currentFilter != .transfer && currentVersion == self.state?.starGiftsVersion {
                     return currentGifts
                 } else if let state = self.state, let allGifts = state.starGifts {
                     if case .transfer = self.starsFilter {
@@ -214,6 +221,8 @@ final class GiftOptionsScreenComponent: Component {
                                     }
                                 }
                             case .transfer:
+                                break
+                            case .hidden:
                                 break
                             }
                             return false
@@ -1373,13 +1382,17 @@ final class GiftOptionsScreenComponent: Component {
             
             var hasGenericGifts = false
             var hasTransferGifts = false
+            var hasHiddenGifts = false
             if !(self.state?.starGifts ?? []).isEmpty {
                 hasGenericGifts = true
             }
             if !(self.state?.transferStarGifts ?? []).isEmpty {
                 hasTransferGifts = true
             }
-            let hasAnyGifts = hasGenericGifts || hasTransferGifts
+            if !(self.state?.hiddenStarGifts ?? []).isEmpty {
+                hasHiddenGifts = true
+            }
+            let hasAnyGifts = hasGenericGifts || hasTransferGifts || hasHiddenGifts
             
             if isSelfGift || isChannelGift || isPremiumDisabled {
                 if !self.premiumItems.isEmpty {
@@ -1545,6 +1558,8 @@ final class GiftOptionsScreenComponent: Component {
                     var starsDescriptionRawString = strings.Gift_Options_Gift_Text(peerName).string
                     if self.starsFilter == .resale {
                         starsDescriptionRawString = strings.Gift_Options_Collectibles_Text
+                    } else if self.starsFilter == .hidden {
+                        starsDescriptionRawString = HiddenGiftsCatalogStrings(languageCode: strings.baseLanguageCode).description
                     }
                     let starsDescriptionString = parseMarkdownIntoAttributedString(starsDescriptionRawString, attributes: markdownAttributes).mutableCopy() as! NSMutableAttributedString
                     if let range = starsDescriptionString.string.range(of: ">"), let chevronImage = self.chevronImage?.0 {
@@ -1611,7 +1626,7 @@ final class GiftOptionsScreenComponent: Component {
                 }
             }
             
-            if hasGenericGifts {
+            if hasGenericGifts || hasHiddenGifts {
                 var tabSelectorItems: [TabSelectorComponent.Item] = []
                 tabSelectorItems.append(TabSelectorComponent.Item(
                     id: AnyHashable(StarsFilter.all.rawValue),
@@ -1644,6 +1659,13 @@ final class GiftOptionsScreenComponent: Component {
                     tabSelectorItems.append(TabSelectorComponent.Item(
                         id: AnyHashable(StarsFilter.resale.rawValue),
                         title: strings.Gift_Options_Gift_Filter_Collectibles
+                    ))
+                }
+
+                if hasHiddenGifts {
+                    tabSelectorItems.append(TabSelectorComponent.Item(
+                        id: AnyHashable(StarsFilter.hidden.rawValue),
+                        title: HiddenGiftsCatalogStrings(languageCode: strings.baseLanguageCode).tabTitle
                     ))
                 }
                 
@@ -1746,12 +1768,14 @@ final class GiftOptionsScreenComponent: Component {
         private let context: AccountContext
         private var disposable: Disposable?
         private var updateDisposable: Disposable?
+        private var hiddenGiftsDisposable: Disposable?
         
         fileprivate var peer: EnginePeer?
         fileprivate var disallowedGifts: TelegramDisallowedGifts?
         fileprivate var premiumProducts: [PremiumGiftProduct]?
         fileprivate var starGifts: [StarGift]?
         fileprivate var starGiftsVersion: Int = 0
+        fileprivate var hiddenStarGifts: [StarGift]?
         
         fileprivate let starGiftsContext: ProfileGiftsContext
         fileprivate var transferStarGifts: [ProfileGiftsContext.State.StarGift]?
@@ -1905,11 +1929,22 @@ final class GiftOptionsScreenComponent: Component {
             })
             
             self.updateDisposable = self.context.engine.payments.keepStarGiftsUpdated().start()
+
+            let languageCode = context.sharedContext.currentPresentationData.with { $0 }.strings.baseLanguageCode
+            self.hiddenGiftsDisposable = (hiddenStarGiftsCatalog(languageCode: languageCode)
+            |> deliverOnMainQueue).start(next: { [weak self] gifts in
+                guard let self else {
+                    return
+                }
+                self.hiddenStarGifts = gifts
+                self.updated()
+            })
         }
         
         deinit {
             self.disposable?.dispose()
             self.updateDisposable?.dispose()
+            self.hiddenGiftsDisposable?.dispose()
         }
     }
     
