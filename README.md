@@ -28,6 +28,13 @@ MadGram не связан с Telegram и не одобрен Telegram.
 - **Пользовательские бейджи** загружаются из подписанного реестра и отображаются рядом с профилями.
 - **Энергосбережение** одной настройкой ограничивает анимации, автовоспроизведение и фоновую работу.
 
+### Другие улучшения
+
+- Добавлен индикатор взаимных контактов в профиле пользователя.
+- Добавлена возможность прочитать все чаты локально или на сервере.
+- Добавлена отдельная вкладка для просмотра и дарения удалённых подарков с подписью и анонимной
+  отправкой.
+
 Настройки MadGram доступны на русском, украинском и английском языках.
 
 ### Сборка
@@ -122,6 +129,12 @@ MadGram is not affiliated with or endorsed by Telegram.
   phone-number visibility.
 - **Custom peer badges** are downloaded from a signed registry and displayed alongside profiles.
 - **Power Saving** applies a single low-power preset for animations, autoplay and background work.
+
+### Other improvements
+
+- Added a mutual contact indicator to user profiles.
+- Added the ability to mark all chats as read locally or on the server.
+- Added a separate tab for viewing and sending removed gifts with captions and anonymous delivery.
 
 MadGram-specific settings are available in Russian, Ukrainian and English.
 
