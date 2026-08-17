@@ -299,8 +299,6 @@ public final class AuthorizationSequenceSplashController: ViewController {
     }
     
     private func pressNext(strings: PresentationStrings?) {
-        if let navigationController = self.navigationController, navigationController.viewControllers.last === self {
-            self.nextPressed?(strings)
-        }
+        self.nextPressed?(strings)
     }
 }

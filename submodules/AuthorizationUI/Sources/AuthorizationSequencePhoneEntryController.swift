@@ -343,9 +343,20 @@ public final class AuthorizationSequencePhoneEntryController: ViewController, MF
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        if !self.animatingIn {
+        if self.animatingIn {
+            self.animateSplashTransitionIfNeeded()
+        } else {
             self.controllerNode.activateInput()
         }
+    }
+
+    private func animateSplashTransitionIfNeeded() {
+        guard self.shouldAnimateIn, let (buttonFrame, buttonTitle, animationSnapshot, textSnapshot) = self.transitionInArguments else {
+            return
+        }
+        self.shouldAnimateIn = false
+        self.animatingIn = false
+        self.controllerNode.animateIn(buttonFrame: buttonFrame, buttonTitle: buttonTitle, animationSnapshot: animationSnapshot, textSnapshot: textSnapshot)
     }
     
     override public func viewWillDisappear(_ animated: Bool) {
@@ -368,11 +379,8 @@ public final class AuthorizationSequencePhoneEntryController: ViewController, MF
     
         self.controllerNode.containerLayoutUpdated(layout, navigationBarHeight: self.navigationLayout(layout: layout).navigationFrame.maxY, transition: transition)
         
-        if self.shouldAnimateIn, let inputHeight = layout.inputHeight, inputHeight > 0.0 {
-            if let (buttonFrame, buttonTitle, animationSnapshot, textSnapshot) = self.transitionInArguments {
-                self.shouldAnimateIn = false
-                self.controllerNode.animateIn(buttonFrame: buttonFrame, buttonTitle: buttonTitle, animationSnapshot: animationSnapshot, textSnapshot: textSnapshot)
-            }
+        if let inputHeight = layout.inputHeight, inputHeight > 0.0 {
+            self.animateSplashTransitionIfNeeded()
         }
     }
     

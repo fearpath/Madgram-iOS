@@ -38,6 +38,7 @@ final class DeletedMessageArchiveRetentionTests: XCTestCase {
             disappearingLimit: 50 * megabyte
         )
 
+        // The overall limit is nowhere near reached, yet the disappearing bucket is over budget.
         XCTAssertEqual(result.removed, ["video"])
         XCTAssertEqual(result.retained, ["ordinary", "photo"])
     }
@@ -66,6 +67,7 @@ final class DeletedMessageArchiveRetentionTests: XCTestCase {
             disappearingLimit: 50 * megabyte
         )
 
+        // Oldest-first eviction would have dropped both small files and still been over budget.
         XCTAssertEqual(result.removed, ["big"])
         XCTAssertEqual(result.retained, ["old-small", "new-small"])
     }
@@ -94,6 +96,7 @@ final class DeletedMessageArchiveRetentionTests: XCTestCase {
             disappearingLimit: 50 * megabyte
         )
 
+        // Each bucket fits its own budget, but together they exceed the overall one.
         XCTAssertEqual(result.removed.count, 1)
         XCTAssertEqual(result.retained.count, 1)
     }
@@ -112,6 +115,7 @@ final class DeletedMessageArchiveRetentionTests: XCTestCase {
 
         XCTAssertFalse(settings.saveDeletedMessages)
         XCTAssertFalse(settings.saveEditedVersions)
+        XCTAssertTrue(settings.saveMessagesFromArchivedChats)
         XCTAssertEqual(settings.deletedMessageMarker, "🧹")
         XCTAssertFalse(settings.isEnabled)
     }
@@ -123,6 +127,18 @@ final class DeletedMessageArchiveRetentionTests: XCTestCase {
         XCTAssertFalse(settings.saveDeletedMessages)
         XCTAssertTrue(settings.saveEditedVersions)
         XCTAssertTrue(settings.isEnabled)
+    }
+
+    func testArchivedChatSavingCanBeDisabled() throws {
+        var settings = DeletedMessageArchiveSettings.defaultSettings
+        settings.saveMessagesFromArchivedChats = false
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(DeletedMessageArchiveSettings.self, from: data)
+
+        XCTAssertFalse(decoded.saveMessagesFromArchivedChats)
+        XCTAssertTrue(decoded.saveDeletedMessages)
+        XCTAssertTrue(decoded.saveEditedVersions)
     }
 
     func testDeletedMarkerFallsBackAndIsLimited() {

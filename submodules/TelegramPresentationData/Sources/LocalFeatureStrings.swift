@@ -33,6 +33,8 @@ public struct LocalMessageArchiveFeatureStrings {
     public let archiveDeletedMessagesInfo: String
     public let archiveEditedMessages: String
     public let archiveEditedMessagesInfo: String
+    public let archiveChats: String
+    public let archiveChatsInfo: String
     public let deletedMessageMarker: String
     public let deletedMessageMarkerInfo: String
     public let keepBetweenLaunches: String
@@ -238,6 +240,8 @@ public struct LocalFeatureStrings {
                 archiveDeletedMessagesInfo: "Сохраняет удалённые облачные сообщения, включая исчезающие и одноразовые медиа. Секретные чаты не сохраняются.",
                 archiveEditedMessages: "Сохранять версии изменений",
                 archiveEditedMessagesInfo: "Сохраняет предыдущие версии отредактированных сообщений. Если сохранение удалённых выключено, версии удаляются вместе с исходным сообщением.",
+                archiveChats: "Сохранять из архивных чатов",
+                archiveChatsInfo: "Если выключить, новые удаления и версии изменений будут сохраняться только для чатов вне системного архива.",
                 deletedMessageMarker: "Метка удалённого сообщения",
                 deletedMessageMarkerInfo: "Текст или эмодзи рядом со временем удалённого сообщения. Пустое значение отображается как 🧹.",
                 keepBetweenLaunches: "Сохранять между запусками",
@@ -431,6 +435,8 @@ public struct LocalFeatureStrings {
                 archiveDeletedMessagesInfo: "Зберігає видалені хмарні повідомлення, зокрема зникаючі та одноразові медіа. Секретні чати не зберігаються.",
                 archiveEditedMessages: "Зберігати версії змін",
                 archiveEditedMessagesInfo: "Зберігає попередні версії відредагованих повідомлень. Якщо збереження видалених вимкнено, версії видаляються разом із повідомленням.",
+                archiveChats: "Зберігати з архівних чатів",
+                archiveChatsInfo: "Якщо вимкнути, нові видалення та версії змін зберігатимуться лише для чатів поза системним архівом.",
                 deletedMessageMarker: "Позначка видаленого повідомлення",
                 deletedMessageMarkerInfo: "Текст або емодзі біля часу видаленого повідомлення. Порожнє значення відображається як 🧹.",
                 keepBetweenLaunches: "Зберігати між запусками",
@@ -624,6 +630,8 @@ public struct LocalFeatureStrings {
                 archiveDeletedMessagesInfo: "Saves deleted cloud messages, including disappearing and view-once media. Secret chats are never saved.",
                 archiveEditedMessages: "Save Edit Versions",
                 archiveEditedMessagesInfo: "Saves previous versions of edited messages. When saving deleted messages is off, versions are removed with the original message.",
+                archiveChats: "Save from Archived Chats",
+                archiveChatsInfo: "When off, new deletions and edit versions are saved only for chats outside the system archive.",
                 deletedMessageMarker: "Deleted Message Marker",
                 deletedMessageMarkerInfo: "Text or emoji displayed beside a deleted message’s time. An empty value is displayed as 🧹.",
                 keepBetweenLaunches: "Keep Between Launches",

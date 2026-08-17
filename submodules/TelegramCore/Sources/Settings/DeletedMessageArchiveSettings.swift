@@ -2,14 +2,18 @@ import Foundation
 import Postbox
 import SwiftSignalKit
 
+/// Per-account controls for the on-device deleted-message archive.
 public struct DeletedMessageArchiveSettings: Codable, Equatable {
     public static let defaultDeletedMessageMarker = "🧹"
     public static let deletedMessageMarkerLimit = 32
     public static let allowedMediaLimitGigabytes: [Int32] = [1, 5, 10, 20, 50]
+    /// Disappearing media is capped separately so that a handful of large one-off videos cannot
+    /// crowd out the ordinary archive.
     public static let allowedDisappearingMediaLimitGigabytes: [Int32] = [1, 2, 5, 10]
     public static let defaultSettings = DeletedMessageArchiveSettings(
         saveDeletedMessages: true,
         saveEditedVersions: true,
+        saveMessagesFromArchivedChats: true,
         deletedMessageMarker: DeletedMessageArchiveSettings.defaultDeletedMessageMarker,
         keepAcrossLaunches: false,
         mediaLimitGigabytes: 5,
@@ -19,6 +23,7 @@ public struct DeletedMessageArchiveSettings: Codable, Equatable {
 
     public var saveDeletedMessages: Bool
     public var saveEditedVersions: Bool
+    public var saveMessagesFromArchivedChats: Bool
     public var deletedMessageMarker: String
     public var keepAcrossLaunches: Bool
     public var mediaLimitGigabytes: Int32
@@ -50,6 +55,7 @@ public struct DeletedMessageArchiveSettings: Codable, Equatable {
     public init(
         saveDeletedMessages: Bool,
         saveEditedVersions: Bool,
+        saveMessagesFromArchivedChats: Bool,
         deletedMessageMarker: String,
         keepAcrossLaunches: Bool,
         mediaLimitGigabytes: Int32,
@@ -58,6 +64,7 @@ public struct DeletedMessageArchiveSettings: Codable, Equatable {
     ) {
         self.saveDeletedMessages = saveDeletedMessages
         self.saveEditedVersions = saveEditedVersions
+        self.saveMessagesFromArchivedChats = saveMessagesFromArchivedChats
         self.deletedMessageMarker = String(deletedMessageMarker.prefix(DeletedMessageArchiveSettings.deletedMessageMarkerLimit))
         self.keepAcrossLaunches = keepAcrossLaunches
         self.mediaLimitGigabytes = DeletedMessageArchiveSettings.allowedMediaLimitGigabytes.contains(mediaLimitGigabytes) ? mediaLimitGigabytes : 5
@@ -65,12 +72,15 @@ public struct DeletedMessageArchiveSettings: Codable, Equatable {
         self.sessionId = sessionId
     }
 
+    // Decoded explicitly so that archives stored before the disappearing-media limit existed keep
+    // their configuration instead of resetting to defaults.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let legacyIsEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         self.init(
             saveDeletedMessages: try container.decodeIfPresent(Bool.self, forKey: .saveDeletedMessages) ?? legacyIsEnabled,
             saveEditedVersions: try container.decodeIfPresent(Bool.self, forKey: .saveEditedVersions) ?? legacyIsEnabled,
+            saveMessagesFromArchivedChats: try container.decodeIfPresent(Bool.self, forKey: .saveMessagesFromArchivedChats) ?? true,
             deletedMessageMarker: try container.decodeIfPresent(String.self, forKey: .deletedMessageMarker) ?? DeletedMessageArchiveSettings.defaultDeletedMessageMarker,
             keepAcrossLaunches: try container.decode(Bool.self, forKey: .keepAcrossLaunches),
             mediaLimitGigabytes: try container.decode(Int32.self, forKey: .mediaLimitGigabytes),
@@ -84,6 +94,7 @@ public struct DeletedMessageArchiveSettings: Codable, Equatable {
         try container.encode(self.isEnabled, forKey: .isEnabled)
         try container.encode(self.saveDeletedMessages, forKey: .saveDeletedMessages)
         try container.encode(self.saveEditedVersions, forKey: .saveEditedVersions)
+        try container.encode(self.saveMessagesFromArchivedChats, forKey: .saveMessagesFromArchivedChats)
         try container.encode(self.deletedMessageMarker, forKey: .deletedMessageMarker)
         try container.encode(self.keepAcrossLaunches, forKey: .keepAcrossLaunches)
         try container.encode(self.mediaLimitGigabytes, forKey: .mediaLimitGigabytes)
@@ -95,6 +106,7 @@ public struct DeletedMessageArchiveSettings: Codable, Equatable {
         case isEnabled
         case saveDeletedMessages
         case saveEditedVersions
+        case saveMessagesFromArchivedChats
         case deletedMessageMarker
         case keepAcrossLaunches
         case mediaLimitGigabytes

@@ -12,6 +12,7 @@ import UIKit
 private final class LocalMessageArchiveControllerArguments {
     let toggleSaveDeletedMessages: (Bool) -> Void
     let toggleSaveEditedVersions: (Bool) -> Void
+    let toggleSaveMessagesFromArchivedChats: (Bool) -> Void
     let updateDeletedMessageMarker: (String) -> Void
     let toggleKeepAcrossLaunches: (Bool) -> Void
     let selectMediaLimit: () -> Void
@@ -23,6 +24,7 @@ private final class LocalMessageArchiveControllerArguments {
     init(
         toggleSaveDeletedMessages: @escaping (Bool) -> Void,
         toggleSaveEditedVersions: @escaping (Bool) -> Void,
+        toggleSaveMessagesFromArchivedChats: @escaping (Bool) -> Void,
         updateDeletedMessageMarker: @escaping (String) -> Void,
         toggleKeepAcrossLaunches: @escaping (Bool) -> Void,
         selectMediaLimit: @escaping () -> Void,
@@ -33,6 +35,7 @@ private final class LocalMessageArchiveControllerArguments {
     ) {
         self.toggleSaveDeletedMessages = toggleSaveDeletedMessages
         self.toggleSaveEditedVersions = toggleSaveEditedVersions
+        self.toggleSaveMessagesFromArchivedChats = toggleSaveMessagesFromArchivedChats
         self.updateDeletedMessageMarker = updateDeletedMessageMarker
         self.toggleKeepAcrossLaunches = toggleKeepAcrossLaunches
         self.selectMediaLimit = selectMediaLimit
@@ -52,6 +55,7 @@ private enum LocalMessageArchiveSection: Int32 {
 private enum LocalMessageArchiveEntry: ItemListNodeEntry {
     case saveDeletedMessages(Bool)
     case saveEditedVersions(Bool)
+    case saveMessagesFromArchivedChats(Bool)
     case markerHeader(String)
     case marker(String)
     case markerInfo(String)
@@ -64,7 +68,7 @@ private enum LocalMessageArchiveEntry: ItemListNodeEntry {
 
     var section: ItemListSectionId {
         switch self {
-        case .saveDeletedMessages, .saveEditedVersions:
+        case .saveDeletedMessages, .saveEditedVersions, .saveMessagesFromArchivedChats:
             return LocalMessageArchiveSection.settings.rawValue
         case .markerHeader, .marker, .markerInfo:
             return LocalMessageArchiveSection.marker.rawValue
@@ -81,24 +85,26 @@ private enum LocalMessageArchiveEntry: ItemListNodeEntry {
             return 0
         case .saveEditedVersions:
             return 1
-        case .markerHeader:
+        case .saveMessagesFromArchivedChats:
             return 2
-        case .marker:
+        case .markerHeader:
             return 3
-        case .markerInfo:
+        case .marker:
             return 4
-        case .keepAcrossLaunches:
+        case .markerInfo:
             return 5
-        case .mediaLimit:
+        case .keepAcrossLaunches:
             return 6
-        case .disappearingMediaLimit:
+        case .mediaLimit:
             return 7
-        case .usage:
+        case .disappearingMediaLimit:
             return 8
-        case .clearMedia:
+        case .usage:
             return 9
-        case .clearArchive:
+        case .clearMedia:
             return 10
+        case .clearArchive:
+            return 11
         }
     }
 
@@ -107,6 +113,8 @@ private enum LocalMessageArchiveEntry: ItemListNodeEntry {
         case let (.saveDeletedMessages(lhsValue), .saveDeletedMessages(rhsValue)):
             return lhsValue == rhsValue
         case let (.saveEditedVersions(lhsValue), .saveEditedVersions(rhsValue)):
+            return lhsValue == rhsValue
+        case let (.saveMessagesFromArchivedChats(lhsValue), .saveMessagesFromArchivedChats(rhsValue)):
             return lhsValue == rhsValue
         case let (.markerHeader(lhsText), .markerHeader(rhsText)), let (.marker(lhsText), .marker(rhsText)), let (.markerInfo(lhsText), .markerInfo(rhsText)):
             return lhsText == rhsText
@@ -158,6 +166,19 @@ private enum LocalMessageArchiveEntry: ItemListNodeEntry {
                 sectionId: self.section,
                 style: .blocks,
                 updated: arguments.toggleSaveEditedVersions
+            )
+        case let .saveMessagesFromArchivedChats(value):
+            return ItemListSwitchItem(
+                presentationData: presentationData,
+                title: strings.archiveChats,
+                titleBadgeComponent: featureInfoBadgeComponent(color: presentationData.theme.list.itemAccentColor),
+                titleBadgeAction: { sourceView in
+                    arguments.showInfo(strings.archiveChatsInfo, sourceView)
+                },
+                value: value,
+                sectionId: self.section,
+                style: .blocks,
+                updated: arguments.toggleSaveMessagesFromArchivedChats
             )
         case let .markerHeader(text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
@@ -260,6 +281,13 @@ public func localMessageArchiveSettingsController(context: AccountContext) -> Vi
                 return current
             }).start()
         },
+        toggleSaveMessagesFromArchivedChats: { value in
+            let _ = updateDeletedMessageArchiveSettingsInteractively(postbox: context.account.postbox, { current in
+                var current = current
+                current.saveMessagesFromArchivedChats = value
+                return current
+            }).start()
+        },
         updateDeletedMessageMarker: { value in
             let _ = updateDeletedMessageArchiveSettingsInteractively(postbox: context.account.postbox, { current in
                 var current = current
@@ -343,6 +371,7 @@ public func localMessageArchiveSettingsController(context: AccountContext) -> Vi
         let entries: [LocalMessageArchiveEntry] = [
             .saveDeletedMessages(settings.saveDeletedMessages),
             .saveEditedVersions(settings.saveEditedVersions),
+            .saveMessagesFromArchivedChats(settings.saveMessagesFromArchivedChats),
             .markerHeader(strings.deletedMessageMarker.uppercased()),
             .marker(settings.deletedMessageMarker),
             .markerInfo(strings.deletedMessageMarkerInfo),

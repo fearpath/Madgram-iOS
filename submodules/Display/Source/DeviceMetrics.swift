@@ -410,9 +410,47 @@ public enum DeviceMetrics: CaseIterable, Equatable {
     }
     
     public var showAppBadge: Bool {
-        if case .iPhoneX = self {
-            return false
+        return self.type == .phone && self.onScreenNavigationHeight(inLandscape: false, systemOnScreenNavigationHeight: nil) != nil
+    }
+
+    public var appBadgeOffset: CGFloat {
+        let defaultOffset: CGFloat
+        switch self {
+        case .iPhoneX, .iPhone12Mini, .iPhone13Mini:
+            defaultOffset = 2.0
+        case .iPhoneXr:
+            defaultOffset = 6.0
+        case .iPhoneXSMax:
+            defaultOffset = 4.0
+        case .iPhone12, .iPhone13, .iPhone13Pro:
+            defaultOffset = 4.0
+        case .iPhone12ProMax, .iPhone13ProMax:
+            defaultOffset = 6.0
+        case .iPhone14Pro, .iPhone14ProZoomed:
+            defaultOffset = 18.0
+        case .iPhone14ProMax, .iPhone14ProMaxZoomed:
+            defaultOffset = 19.0
+        case .iPhone16Pro:
+            defaultOffset = 21.0
+        case .iPhone16ProMax, .iPhoneAir:
+            defaultOffset = 22.0
+        case let .unknown(screenSize, statusBarHeight, onScreenNavigationHeight, _):
+            if onScreenNavigationHeight == nil {
+                defaultOffset = 0.0
+            } else if statusBarHeight >= 50.0 {
+                defaultOffset = screenSize.width >= 430.0 ? 22.0 : 21.0
+            } else if screenSize.width <= 375.0 {
+                defaultOffset = 2.0
+            } else if screenSize.width >= 414.0 {
+                defaultOffset = 6.0
+            } else {
+                defaultOffset = 4.0
+            }
+        default:
+            defaultOffset = 0.0
         }
-        return self.hasTopNotch
+        let nativeScale = UIScreen.main.nativeScale
+        let scaleFactor = nativeScale > 0.0 ? UIScreen.main.scale / nativeScale : 1.0
+        return floorToScreenPixels(defaultOffset * scaleFactor)
     }
 }
