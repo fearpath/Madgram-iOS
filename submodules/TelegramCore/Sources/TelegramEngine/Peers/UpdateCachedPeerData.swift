@@ -3,7 +3,7 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-func fetchAndUpdateSupplementalCachedPeerData(peerId rawPeerId: PeerId, accountPeerId: PeerId, network: Network, postbox: Postbox) -> Signal<Bool, NoError> {
+func fetchAndUpdateSupplementalCachedPeerData(peerId rawPeerId: PeerId, accountPeerId: PeerId, network: Network, postbox: Postbox, force: Bool = false) -> Signal<Bool, NoError> {
     return postbox.combinedView(keys: [.basicPeer(rawPeerId)])
     |> mapToSignal { views -> Signal<Peer, NoError> in
         guard let view = views.views[.basicPeer(rawPeerId)] as? BasicPeerView else {
@@ -41,19 +41,19 @@ func fetchAndUpdateSupplementalCachedPeerData(peerId rawPeerId: PeerId, accountP
             
             let cachedData = transaction.getPeerCachedData(peerId: peer.id)
             
-            if let cachedData = cachedData as? CachedUserData {
+            if !force, let cachedData = cachedData as? CachedUserData {
                 if cachedData.peerStatusSettings != nil {
                     return .single(true)
                 }
-            } else if let cachedData = cachedData as? CachedGroupData {
+            } else if !force, let cachedData = cachedData as? CachedGroupData {
                 if cachedData.peerStatusSettings != nil {
                     return .single(true)
                 }
-            } else if let cachedData = cachedData as? CachedChannelData {
+            } else if !force, let cachedData = cachedData as? CachedChannelData {
                 if cachedData.peerStatusSettings != nil {
                     return .single(true)
                 }
-            } else if let cachedData = cachedData as? CachedSecretChatData {
+            } else if !force, let cachedData = cachedData as? CachedSecretChatData {
                 if cachedData.peerStatusSettings != nil {
                     return .single(true)
                 }

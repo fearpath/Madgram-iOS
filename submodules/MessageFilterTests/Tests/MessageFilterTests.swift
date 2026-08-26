@@ -95,9 +95,20 @@ final class MessageFilterTests: XCTestCase {
         }
         """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(InterfaceTuningSettings.self, from: legacy)
+        XCTAssertFalse(decoded.showCallbackData)
         XCTAssertFalse(decoded.hideBusinessBotPanel)
         XCTAssertTrue(decoded.businessBotPanelVisibilityOverrides.isEmpty)
         XCTAssertTrue(decoded.isBusinessBotPanelVisible(peerId: 42))
+    }
+
+    func testCallbackDataSettingRoundTrip() throws {
+        var settings = InterfaceTuningSettings.defaultSettings
+        settings.showCallbackData = true
+
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(InterfaceTuningSettings.self, from: data)
+        XCTAssertTrue(decoded.showCallbackData)
+        XCTAssertEqual(decoded, settings)
     }
 
     func testBusinessPanelOverrideHasPriorityOverGlobalSetting() {

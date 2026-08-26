@@ -1,7 +1,11 @@
 import Foundation
+import UIKit
 import Display
 import ChatControllerInteraction
 import AccountContext
+import AlertUI
+import PresentationDataUtils
+import TelegramUIPreferences
 
 extension ChatControllerImpl {
     func openLinkLongTap(_ action: ChatControllerInteractionLongTapAction, params: ChatControllerInteraction.LongTapParams?) {
@@ -21,6 +25,22 @@ extension ChatControllerImpl {
         switch action {
         case let .url(url):
             self.openLinkContextMenu(url: url, params: params)
+        case let .callbackData(displayValue, copyValue):
+            guard InterfaceTuningSettingsStore.shared.current.showCallbackData else {
+                return
+            }
+            let strings = self.presentationData.strings
+            self.present(textAlertController(
+                context: self.context,
+                title: strings.localFeatures.interfaceTuning.callbackDataTitle,
+                text: displayValue,
+                actions: [
+                    TextAlertAction(type: .genericAction, title: strings.Common_Cancel, action: {}),
+                    TextAlertAction(type: .defaultAction, title: strings.Conversation_ContextMenuCopy, action: {
+                        UIPasteboard.general.string = copyValue
+                    })
+                ]
+            ), in: .window(.root))
         case let .mention(mention):
             self.openMentionContextMenu(username: mention, peerId: nil, params: params)
         case let .peerMention(peerId, mention):

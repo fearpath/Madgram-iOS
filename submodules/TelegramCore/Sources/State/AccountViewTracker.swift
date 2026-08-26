@@ -1674,7 +1674,9 @@ public final class AccountViewTracker {
                                                 break loop
                                             }
                                         }
-                                        return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
+                                        var tags = currentMessage.tags
+                                        tags.remove(.unseenPersonalMessage)
+                                        return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: currentMessage.author?.id, text: currentMessage.text, attributes: attributes, media: currentMessage.media))
                                     })
 
                                     transaction.setPendingMessageAction(type: .consumeUnseenPersonalMessage, id: id, action: ConsumePersonalMessageAction())
@@ -1804,7 +1806,7 @@ public final class AccountViewTracker {
                 return
             }
             let queue = self.queue
-            context.disposable.set(combineLatest(fetchAndUpdateSupplementalCachedPeerData(peerId: peerId, accountPeerId: account.peerId, network: account.network, postbox: account.postbox), _internal_fetchAndUpdateCachedPeerData(accountPeerId: account.peerId, peerId: peerId, network: account.network, postbox: account.postbox)).start(next: { [weak self] supplementalStatus, cachedStatus in
+            context.disposable.set(combineLatest(fetchAndUpdateSupplementalCachedPeerData(peerId: peerId, accountPeerId: account.peerId, network: account.network, postbox: account.postbox, force: true), _internal_fetchAndUpdateCachedPeerData(accountPeerId: account.peerId, peerId: peerId, network: account.network, postbox: account.postbox)).start(next: { [weak self] supplementalStatus, cachedStatus in
                 queue.async {
                     guard let strongSelf = self else {
                         return

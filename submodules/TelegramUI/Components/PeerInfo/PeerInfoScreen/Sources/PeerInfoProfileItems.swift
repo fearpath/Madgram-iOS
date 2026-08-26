@@ -946,9 +946,12 @@ func infoItems(
     }
 
     if interfaceSettings.showRegistrationDate, let cachedData = data.cachedData as? CachedUserData, let registrationDate = cachedData.peerStatusSettings?.registrationDate {
-        let components = registrationDate.components(separatedBy: ".")
+        let isApproximate = registrationDate.hasPrefix("~")
+        let normalizedRegistrationDate = isApproximate ? String(registrationDate.dropFirst()) : registrationDate
+        let components = normalizedRegistrationDate.components(separatedBy: ".")
         if components.count == 2, let monthValue = Int32(components[0]), let yearValue = Int32(components[1]) {
-            let value = stringForMonth(strings: presentationData.strings, month: monthValue - 1, ofYear: yearValue - 1900)
+            let formattedValue = stringForMonth(strings: presentationData.strings, month: monthValue - 1, ofYear: yearValue - 1900)
+            let value = isApproximate ? "≈ \(formattedValue)" : formattedValue
             items[.technical]!.append(PeerInfoScreenLabeledValueItem(
                 id: technicalItemId,
                 label: interfaceStrings.registrationDateLabel,

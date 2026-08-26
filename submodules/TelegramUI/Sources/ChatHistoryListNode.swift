@@ -74,6 +74,34 @@ private func maxTrailingFilteredIncomingMessageIndex(view: MessageHistoryView, a
     return result
 }
 
+private func filteredUnseenPersonalMentionMessageIds(view: MessageHistoryView, accountPeerId: PeerId, settings: MessageFilterSettings, upTo maxReadIndex: MessageIndex) -> [MessageId] {
+    guard settings.isActive else {
+        return []
+    }
+
+    var result: [MessageId] = []
+    for entry in view.entries {
+        let message = entry.message
+        guard message.index <= maxReadIndex, message.id.namespace == Namespaces.Message.Cloud, message.effectivelyIncoming(accountPeerId), let author = message.author, settings.hidesMessages(fromAuthorId: author.id.toInt64()), message.tags.contains(.unseenPersonalMessage) else {
+            continue
+        }
+
+        var hasUnconsumedMention = false
+        var hasUnconsumedContent = false
+        for attribute in message.attributes {
+            if let attribute = attribute as? ConsumablePersonalMentionMessageAttribute, !attribute.consumed, !attribute.pending {
+                hasUnconsumedMention = true
+            } else if let attribute = attribute as? ConsumableContentMessageAttribute, !attribute.consumed {
+                hasUnconsumedContent = true
+            }
+        }
+        if hasUnconsumedMention && !hasUnconsumedContent {
+            result.append(message.id)
+        }
+    }
+    return result
+}
+
 private extension ChatHistoryLocation {
     func withMessageCount(_ count: Int) -> ChatHistoryLocation? {
         switch self {
@@ -1251,6 +1279,17 @@ public final class ChatHistoryListNodeImpl: ASDisplayNode, ChatHistoryNode, Chat
                     }
                 }
                 if let maxMessage {
+                    if let historyView = currentHistoryView?.originalView {
+                        let filteredMentionIds = filteredUnseenPersonalMentionMessageIds(
+                            view: historyView,
+                            accountPeerId: strongSelf.context.account.peerId,
+                            settings: MessageFilterSettingsStore.shared.current,
+                            upTo: maxMessage
+                        )
+                        if !filteredMentionIds.isEmpty {
+                            strongSelf.messageMentionProcessingManager.add(filteredMentionIds.map { MessageAndThreadId(messageId: $0, threadId: nil) })
+                        }
+                    }
                     strongSelf.updateMaxVisibleReadIncomingMessageIndex(maxMessage)
                 }
                 
@@ -2328,6 +2367,15 @@ public final class ChatHistoryListNodeImpl: ASDisplayNode, ChatHistoryNode, Chat
                     accountPeerId: context.account.peerId,
                     settings: messageFilterSettings
                 ) {
+                    let filteredMentionIds = filteredUnseenPersonalMentionMessageIds(
+                        view: view,
+                        accountPeerId: context.account.peerId,
+                        settings: messageFilterSettings,
+                        upTo: trailingFilteredIndex
+                    )
+                    if !filteredMentionIds.isEmpty {
+                        strongSelf.messageMentionProcessingManager.add(filteredMentionIds.map { MessageAndThreadId(messageId: $0, threadId: nil) })
+                    }
                     strongSelf.updateMaxVisibleReadIncomingMessageIndex(trailingFilteredIndex)
                 }
                 let previousValueAndVersion = previousView.swap((processedView, update.1, selectedMessages, allAdMessages.version))

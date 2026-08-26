@@ -630,6 +630,8 @@ func chatContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, promoI
                             case let .channel(channel):
                                 if case .group = channel.info {
                                     canDeleteOwnMessages = true
+                                } else if case .broadcast = channel.info, channel.hasPermission(.sendText) {
+                                    canDeleteOwnMessages = true
                                 }
                             default:
                                 break

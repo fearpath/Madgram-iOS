@@ -877,6 +877,22 @@ open class ChatMessageItemView: ListViewItemNode, ChatMessageItemNodeProtocol {
             switch button.action {
                 case let .url(url):
                     item.controllerInteraction.longTap(.url(url), ChatControllerInteraction.LongTapParams(message: item.message))
+                case let .callback(_, data):
+                    let rawData = data.makeData()
+                    let displayValue: String
+                    let copyValue: String
+                    if rawData.isEmpty {
+                        displayValue = "∅"
+                        copyValue = ""
+                    } else if let value = String(data: rawData, encoding: .utf8), !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) {
+                        displayValue = value
+                        copyValue = value
+                    } else {
+                        let value = rawData.map { String(format: "%02X", $0) }.joined(separator: " ")
+                        displayValue = value
+                        copyValue = value
+                    }
+                    item.controllerInteraction.longTap(.callbackData(displayValue: displayValue, copyValue: copyValue), ChatControllerInteraction.LongTapParams(message: item.message))
                 default:
                     break
             }

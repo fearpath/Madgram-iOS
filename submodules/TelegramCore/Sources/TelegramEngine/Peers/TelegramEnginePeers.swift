@@ -238,6 +238,16 @@ public extension TelegramEngine {
                 }
             }
         }
+
+        public func refreshPeerStatusSettings(peerId: EnginePeer.Id) -> Signal<Bool, NoError> {
+            return fetchAndUpdateSupplementalCachedPeerData(
+                peerId: peerId,
+                accountPeerId: self.account.peerId,
+                network: self.account.network,
+                postbox: self.account.postbox,
+                force: true
+            )
+        }
         
         public func resolvePeerByPhone(phone: String, ageLimit: Int32 = 2 * 60 * 60 * 24) -> Signal<EnginePeer?, NoError> {
             return _internal_resolvePeerByPhone(account: self.account, phone: phone, ageLimit: ageLimit)

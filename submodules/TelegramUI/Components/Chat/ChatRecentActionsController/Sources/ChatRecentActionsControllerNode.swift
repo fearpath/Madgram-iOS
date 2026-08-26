@@ -553,6 +553,8 @@ final class ChatRecentActionsControllerNode: ViewControllerTracingNode {
         }, longTap: { [weak self] action, params in
             if let strongSelf = self {
                 switch action {
+                    case .callbackData:
+                        break
                     case let .url(url):
                         var cleanUrl = url
                         let canOpenIn = availableOpenInOptions(context: strongSelf.context, item: .url(url: url)).count > 1

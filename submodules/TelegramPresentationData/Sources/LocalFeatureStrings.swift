@@ -127,6 +127,7 @@ public struct InterfaceTuningFeatureStrings {
     public let title: String
     public let tabsSection: String
     public let profilesSection: String
+    public let messagesSection: String
     public let storiesSection: String
     public let mediaSection: String
     public let privacySection: String
@@ -158,6 +159,10 @@ public struct InterfaceTuningFeatureStrings {
     public let dataCenterLabel: String
     public let registrationDateLabel: String
     public let chatCreationDateLabel: String
+
+    public let showCallbackData: String
+    public let showCallbackDataInfo: String
+    public let callbackDataTitle: String
 
     public let hideStoryStrip: String
     public let hideStoryStripInfo: String
@@ -284,6 +289,7 @@ public struct LocalFeatureStrings {
                 title: "Настройка интерфейса",
                 tabsSection: "НИЖНЯЯ ПАНЕЛЬ",
                 profilesSection: "ПРОФИЛИ",
+                messagesSection: "СООБЩЕНИЯ",
                 storiesSection: "ИСТОРИИ",
                 mediaSection: "МЕДИА",
                 privacySection: "ЛОКАЛЬНАЯ ПРИВАТНОСТЬ",
@@ -305,7 +311,7 @@ public struct LocalFeatureStrings {
                 showDataCenter: "Показывать дата-центр",
                 showDataCenterInfo: "Показывает номер дата-центра, определённый по фотографии профиля. Если фотографии нет, значение может быть недоступно.",
                 showRegistrationDate: "Дата регистрации",
-                showRegistrationDateInfo: "Показывает приблизительную дату регистрации, только если Telegram уже передал её клиенту.",
+                showRegistrationDateInfo: "Показывает официальную дату Telegram, а если она недоступна — приблизительную оценку через сервис AyuGram.",
                 showChatCreationDate: "Дата создания чата",
                 showChatCreationDateInfo: "Показывает дату первого доступного сообщения или дату создания группы. Для некоторых чатов значение неизвестно.",
                 profileIdentifierLabel: "User ID",
@@ -313,6 +319,9 @@ public struct LocalFeatureStrings {
                 dataCenterLabel: "DC",
                 registrationDateLabel: "Дата регистрации",
                 chatCreationDateLabel: "Дата создания чата",
+                showCallbackData: "Показывать callback data",
+                showCallbackDataInfo: "Долгое нажатие на inline-кнопку показывает передаваемые боту данные и позволяет их скопировать. Обычное нажатие продолжает выполнять кнопку.",
+                callbackDataTitle: "Callback data",
                 hideStoryStrip: "Скрывать ленту историй",
                 hideStoryStripInfo: "Убирает истории с верхней части списка чатов, не удаляя их и не меняя состояние на сервере.",
                 disableStoryCameraSwipe: "Отключить свайп к камере",
@@ -479,6 +488,7 @@ public struct LocalFeatureStrings {
                 title: "Налаштування інтерфейсу",
                 tabsSection: "НИЖНЯ ПАНЕЛЬ",
                 profilesSection: "ПРОФІЛІ",
+                messagesSection: "ПОВІДОМЛЕННЯ",
                 storiesSection: "ІСТОРІЇ",
                 mediaSection: "МЕДІА",
                 privacySection: "ЛОКАЛЬНА ПРИВАТНІСТЬ",
@@ -500,7 +510,7 @@ public struct LocalFeatureStrings {
                 showDataCenter: "Показувати дата-центр",
                 showDataCenterInfo: "Показує номер дата-центру, визначений за фотографією профілю. Без фотографії значення може бути недоступним.",
                 showRegistrationDate: "Дата реєстрації",
-                showRegistrationDateInfo: "Показує приблизну дату реєстрації лише тоді, коли Telegram уже передав її клієнту.",
+                showRegistrationDateInfo: "Показує офіційну дату Telegram, а якщо вона недоступна — приблизну оцінку через сервіс AyuGram.",
                 showChatCreationDate: "Дата створення чату",
                 showChatCreationDateInfo: "Показує дату першого доступного повідомлення або створення групи. Для деяких чатів значення невідоме.",
                 profileIdentifierLabel: "User ID",
@@ -508,6 +518,9 @@ public struct LocalFeatureStrings {
                 dataCenterLabel: "DC",
                 registrationDateLabel: "Дата реєстрації",
                 chatCreationDateLabel: "Дата створення чату",
+                showCallbackData: "Показувати callback data",
+                showCallbackDataInfo: "Довге натискання inline-кнопки показує дані, що передаються боту, і дозволяє їх скопіювати. Звичайне натискання й надалі виконує кнопку.",
+                callbackDataTitle: "Callback data",
                 hideStoryStrip: "Приховувати стрічку історій",
                 hideStoryStripInfo: "Прибирає історії з верхньої частини списку чатів, не видаляючи їх і не змінюючи стан на сервері.",
                 disableStoryCameraSwipe: "Вимкнути свайп до камери",
@@ -664,6 +677,7 @@ public struct LocalFeatureStrings {
                 title: "Interface Tuning",
                 tabsSection: "BOTTOM BAR",
                 profilesSection: "PROFILES",
+                messagesSection: "MESSAGES",
                 storiesSection: "STORIES",
                 mediaSection: "MEDIA",
                 privacySection: "LOCAL PRIVACY",
@@ -685,7 +699,7 @@ public struct LocalFeatureStrings {
                 showDataCenter: "Show Data Center",
                 showDataCenterInfo: "Shows the data-center number inferred from the profile photo. It may be unavailable without a photo.",
                 showRegistrationDate: "Registration Date",
-                showRegistrationDateInfo: "Shows an approximate registration date only when Telegram has already supplied it to the client.",
+                showRegistrationDateInfo: "Shows Telegram's official date when available, otherwise an approximate estimate from the AyuGram service.",
                 showChatCreationDate: "Chat Creation Date",
                 showChatCreationDateInfo: "Shows the first available message date or group creation date. It is unavailable for some chats.",
                 profileIdentifierLabel: "User ID",
@@ -693,6 +707,9 @@ public struct LocalFeatureStrings {
                 dataCenterLabel: "DC",
                 registrationDateLabel: "Registration date",
                 chatCreationDateLabel: "Chat created",
+                showCallbackData: "Show Callback Data",
+                showCallbackDataInfo: "Long-pressing an inline button shows the data sent to the bot and lets you copy it. A regular tap still performs the button action.",
+                callbackDataTitle: "Callback data",
                 hideStoryStrip: "Hide Story Strip",
                 hideStoryStripInfo: "Removes stories from the top of the chat list without deleting them or changing server state.",
                 disableStoryCameraSwipe: "Disable Camera Swipe",

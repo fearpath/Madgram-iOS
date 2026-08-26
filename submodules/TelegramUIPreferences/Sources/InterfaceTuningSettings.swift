@@ -14,6 +14,8 @@ public struct InterfaceTuningSettings: Codable, Equatable {
     public var showRegistrationDate: Bool
     public var showChatCreationDate: Bool
 
+    public var showCallbackData: Bool
+
     public var hideStoryStrip: Bool
     public var disableStoryCameraSwipe: Bool
     public var confirmStoryOpen: Bool
@@ -36,6 +38,7 @@ public struct InterfaceTuningSettings: Codable, Equatable {
         showDataCenter: Bool,
         showRegistrationDate: Bool,
         showChatCreationDate: Bool,
+        showCallbackData: Bool = false,
         hideStoryStrip: Bool,
         disableStoryCameraSwipe: Bool,
         confirmStoryOpen: Bool,
@@ -56,6 +59,7 @@ public struct InterfaceTuningSettings: Codable, Equatable {
         self.showDataCenter = showDataCenter
         self.showRegistrationDate = showRegistrationDate
         self.showChatCreationDate = showChatCreationDate
+        self.showCallbackData = showCallbackData
         self.hideStoryStrip = hideStoryStrip
         self.disableStoryCameraSwipe = disableStoryCameraSwipe
         self.confirmStoryOpen = confirmStoryOpen
@@ -70,6 +74,7 @@ public struct InterfaceTuningSettings: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case concealBottomBar, showContactsShortcut, showCallsShortcut, showTabLabels, showSearchShortcut, stretchBottomBar
         case showProfileIdentifiers, showDataCenter, showRegistrationDate, showChatCreationDate
+        case showCallbackData
         case hideStoryStrip, disableStoryCameraSwipe, confirmStoryOpen, allowStoryRepost
         case startRoundVideoWithRearCamera, hideGalleryCamera, hidePhoneInSettings
         case hideBusinessBotPanel, businessBotPanelVisibilityOverrides
@@ -87,6 +92,7 @@ public struct InterfaceTuningSettings: Codable, Equatable {
         self.showDataCenter = try container.decodeIfPresent(Bool.self, forKey: .showDataCenter) ?? false
         self.showRegistrationDate = try container.decodeIfPresent(Bool.self, forKey: .showRegistrationDate) ?? false
         self.showChatCreationDate = try container.decodeIfPresent(Bool.self, forKey: .showChatCreationDate) ?? false
+        self.showCallbackData = try container.decodeIfPresent(Bool.self, forKey: .showCallbackData) ?? false
         self.hideStoryStrip = try container.decodeIfPresent(Bool.self, forKey: .hideStoryStrip) ?? false
         self.disableStoryCameraSwipe = try container.decodeIfPresent(Bool.self, forKey: .disableStoryCameraSwipe) ?? false
         self.confirmStoryOpen = try container.decodeIfPresent(Bool.self, forKey: .confirmStoryOpen) ?? false
@@ -116,6 +122,7 @@ public struct InterfaceTuningSettings: Codable, Equatable {
         showDataCenter: false,
         showRegistrationDate: false,
         showChatCreationDate: false,
+        showCallbackData: false,
         hideStoryStrip: false,
         disableStoryCameraSwipe: false,
         confirmStoryOpen: false,

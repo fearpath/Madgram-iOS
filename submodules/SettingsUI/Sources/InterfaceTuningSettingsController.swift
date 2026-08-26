@@ -10,6 +10,7 @@ import UIKit
 private enum InterfaceTuningSection: Int32 {
     case tabs
     case profiles
+    case messages
     case stories
     case media
     case privacy
@@ -27,6 +28,7 @@ private enum InterfaceTuningKey: Int32 {
     case showDataCenter
     case showRegistrationDate
     case showChatCreationDate
+    case showCallbackData
     case hideStoryStrip
     case disableStoryCameraSwipe
     case confirmStoryOpen
@@ -78,6 +80,7 @@ private enum InterfaceTuningEntry: ItemListNodeEntry {
             case .showDataCenter: return 12
             case .showRegistrationDate: return 13
             case .showChatCreationDate: return 14
+            case .showCallbackData: return 16
             case .hideStoryStrip: return 21
             case .disableStoryCameraSwipe: return 22
             case .confirmStoryOpen: return 23
@@ -168,6 +171,8 @@ private func updatedInterfaceTuningSettings(
         current.showRegistrationDate = value
     case .showChatCreationDate:
         current.showChatCreationDate = value
+    case .showCallbackData:
+        current.showCallbackData = value
     case .hideStoryStrip:
         current.hideStoryStrip = value
     case .disableStoryCameraSwipe:
@@ -225,6 +230,9 @@ public func interfaceTuningSettingsController(context: AccountContext) -> ViewCo
             .toggle(.showDataCenter, .profiles, strings.showDataCenter, strings.showDataCenterInfo, settings.showDataCenter, true),
             .toggle(.showRegistrationDate, .profiles, strings.showRegistrationDate, strings.showRegistrationDateInfo, settings.showRegistrationDate, true),
             .toggle(.showChatCreationDate, .profiles, strings.showChatCreationDate, strings.showChatCreationDateInfo, settings.showChatCreationDate, true),
+
+            .header(15, .messages, strings.messagesSection),
+            .toggle(.showCallbackData, .messages, strings.showCallbackData, strings.showCallbackDataInfo, settings.showCallbackData, true),
 
             .header(20, .stories, strings.storiesSection),
             .toggle(.hideStoryStrip, .stories, strings.hideStoryStrip, strings.hideStoryStripInfo, settings.hideStoryStrip, true),

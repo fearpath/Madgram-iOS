@@ -22,6 +22,102 @@ enum PeerInfoUpdatingAvatar {
     case image(TelegramMediaImageRepresentation)
 }
 
+private struct ApproximateRegistrationDateResponse: Decodable {
+    let flag: String
+    let date: String
+}
+
+private func approximateRegistrationMonth(from results: RequestChatContextResultsResult?) -> String? {
+    guard let results else {
+        return nil
+    }
+    for result in results.results.results {
+        let text: String
+        switch result.message {
+        case let .text(value, _, _, _, _, _):
+            text = value
+        default:
+            continue
+        }
+        guard let data = text.data(using: .utf8), let response = try? JSONDecoder().decode(ApproximateRegistrationDateResponse.self, from: data) else {
+            continue
+        }
+        guard ["EXACT", "INTERPOLATED", "LT", "ET"].contains(response.flag) else {
+            continue
+        }
+        let components = response.date.split(separator: ".")
+        guard components.count == 3, let month = Int(components[1]), let year = Int(components[2]), (1 ... 12).contains(month), (2013 ... 2100).contains(year) else {
+            continue
+        }
+        return "~\(month).\(year)"
+    }
+    return nil
+}
+
+private func refreshRegistrationDate(context: AccountContext, peerId: PeerId) {
+    let signal = context.engine.peers.refreshPeerStatusSettings(peerId: peerId)
+    |> take(1)
+    |> mapToSignal { _ -> Signal<Bool, NoError> in
+        return context.account.postbox.transaction { transaction -> Bool in
+            guard let cachedData = transaction.getPeerCachedData(peerId: peerId) as? CachedUserData else {
+                return false
+            }
+            return cachedData.peerStatusSettings?.registrationDate == nil
+        }
+    }
+    |> mapToSignal { needsFallback -> Signal<PeerId?, NoError> in
+        guard needsFallback else {
+            return .single(nil)
+        }
+        return context.engine.peers.resolvePeerByName(name: "ayugrambot", referrer: nil)
+        |> mapToSignal { result -> Signal<PeerId?, NoError> in
+            switch result {
+            case .progress:
+                return .complete()
+            case let .result(peer):
+                return .single(peer?.id)
+            }
+        }
+    }
+    |> mapToSignal { botId -> Signal<String?, NoError> in
+        guard let botId else {
+            return .single(nil)
+        }
+        return context.engine.messages.requestChatContextResults(
+            botId: botId,
+            peerId: context.account.peerId,
+            query: "regdate \(peerId.id._internalGetInt64Value())",
+            offset: ""
+        )
+        |> map { results in
+            return approximateRegistrationMonth(from: results)
+        }
+        |> `catch` { _ -> Signal<String?, NoError> in
+            return .single(nil)
+        }
+    }
+    |> mapToSignal { registrationMonth -> Signal<Never, NoError> in
+        guard let registrationMonth else {
+            return .complete()
+        }
+        return context.account.postbox.transaction { transaction -> Void in
+            transaction.updatePeerCachedData(peerIds: Set([peerId]), update: { _, current in
+                guard let current = current as? CachedUserData else {
+                    return current
+                }
+                var statusSettings = current.peerStatusSettings ?? PeerStatusSettings()
+                if let existingDate = statusSettings.registrationDate, !existingDate.hasPrefix("~") {
+                    return current
+                }
+                statusSettings.registrationDate = registrationMonth
+                return current.withUpdatedPeerStatusSettings(statusSettings)
+            })
+        }
+        |> ignoreValues
+    }
+    let _ = signal.startStandalone()
+}
+
 enum AvatarUploadProgress {
     case value(CGFloat)
     case indefinite
@@ -1127,6 +1223,9 @@ func peerInfoScreenData(
     forceHasGifts: Bool,
     switchToUpgradableGifts: Bool
 ) -> Signal<PeerInfoScreenData, NoError> {
+    if InterfaceTuningSettingsStore.shared.current.showRegistrationDate && peerId.namespace == Namespaces.Peer.CloudUser && peerId != context.account.peerId {
+        refreshRegistrationDate(context: context, peerId: peerId)
+    }
     return peerInfoScreenInputData(context: context, peerId: peerId, isSettings: isSettings)
     |> mapToSignal { inputData -> Signal<PeerInfoScreenData, NoError> in
         let wasUpgradedGroup = Atomic<Bool?>(value: nil)
